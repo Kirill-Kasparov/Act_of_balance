@@ -139,7 +139,7 @@ def handle_file(message):
                     'name:' + str(message.from_user.first_name) + ' ' + str(message.from_user.last_name) + ';' + \
                     'username:' + str(message.from_user.username) + ';' + \
                     'message:' + str(message.text) + ';' + 'file:' + str(
-            message.document.file_name) + ';' + 'order:' + str(start_debet) + ';' + 'order_detect:' + str(end_debet)
+            message.document.file_name) + ';' + 'order:' + str(start_debet) + ';' + 'order_detect:' + str(end_debet)+ ';' + 'time:' + str(int(time.time() - start))
         print(user_logs)
 
         while True:  # проверка, если файл открыт
@@ -154,7 +154,11 @@ def handle_file(message):
     start = time.time()  # для таймера выполнения
     # Скачиваем файл
     file_info = bot.get_file(message.document.file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
+    if '.xls' in str(message.document.file_name):
+        downloaded_file = bot.download_file(file_info.file_path)
+    else:
+        bot.send_message(message.from_user.id, 'Неверный файл. Необходимо отправить исходник new_compare.xls')
+
 
     # Загрузка базы
     sverka_df = pd.read_excel(downloaded_file, sheet_name='сокращённый по ЮрЛицу', header=11, nrows=200000)
@@ -197,8 +201,7 @@ def handle_file(message):
             break
     end_order = sverka_df.loc[(sverka_df['Комментарий'] == '-') & (sverka_df['Дебет'] != 0.0)]
     end_order = len(end_order['Дебет'])
-    print('Опознаны оплаты по комбинациям заказам:', total_order - end_order, '/ Всего заказов:', total_order,
-          '/ Циклов поиска:', count)
+    #print('Опознаны оплаты по комбинациям заказам:', total_order - end_order, '/ Всего заказов:', total_order, '/ Циклов поиска:', count)
 
     # отмечаем недоплаты
     sverka_df = search_for_non_payments(sverka_df)
@@ -206,13 +209,12 @@ def handle_file(message):
     # Завершаем обработку и сохраняем в файл
     logs()
     end = time.time()
-    print("Время выполнения: ", int(end - start), ' сек.')
+    #print("Время выполнения: ", int(end - start), ' сек.')
     sverka_df.to_excel('Разбор_сальдо.xlsx', index=False)
 
     bot.send_message(message.from_user.id, "Время выполнения: " + str(int(end - start)) + ' сек.')
     with open('Разбор_сальдо.xlsx', 'rb') as f:
         bot.send_document(message.chat.id, f)
-
 
 try:  # перезапуск при достижении лимита и дисконекте
     count_logs += 1
