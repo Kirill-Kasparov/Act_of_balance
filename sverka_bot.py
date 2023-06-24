@@ -226,7 +226,6 @@ def handle_file(message):
         def workind_days():
             # Получаем дату из файла
             creation_time = pd.read_excel(downloaded_file, sheet_name='Лист ТРП', header=1, nrows=1)
-            print('1')
             creation_time = creation_time.columns[0].replace('Отчётная дата: ', '').split()
             creation_time = creation_time[0].split('.')
             ddf = datetime.date(int(creation_time[2]), int(creation_time[1]), int(creation_time[0]))
@@ -529,11 +528,126 @@ def handle_file(message):
                 bot.send_document(message.chat.id, f)
 
         start_date, start_date_2, now_date, now_date_2, end_date, end_date_2, now_working_days, now_working_days_2, end_working_days, end_working_days_2 = workind_days()
-        print('2')
         data_month_otgr_list_trp()
         data_month_otgr_list_partners()
         data_month_otgr_list_ts()
+    def data_network_partners():
+        def workind_days():
+            # Получаем дату из файла
+            creation_time = pd.read_excel(downloaded_file, sheet_name='Лист Клиент', header=1, nrows=1)
+            creation_time = creation_time.columns[0].replace('Отчётная дата: ', '').split()
+            creation_time = creation_time[0].split('.')
+            ddf = datetime.date(int(creation_time[2]), int(creation_time[1]), int(creation_time[0]))
+            # Список праздничных дней
+            holidays = pd.read_excel('holidays.xlsx')
+            # Конвертируем дату из Excel формата в datetime формат
+            for col in holidays.columns:
+                holidays[col] = pd.to_datetime(holidays[col]).dt.date
 
+            # Начальная и конечная дата текущего месяца
+            start_date = datetime.date(int(ddf.strftime('%Y')), int(ddf.strftime('%m')), 1)
+            now_date = datetime.date(int(ddf.strftime('%Y')), int(ddf.strftime('%m')), int(ddf.strftime('%d')))
+            end_date = datetime.date(int(ddf.strftime('%Y')), int(ddf.strftime('%m')),
+                                     calendar.monthrange(now_date.year, now_date.month)[1])
+
+            # Вычисляем количество рабочих дней
+            now_working_days = 0
+            end_working_days = 0
+
+            current_date = start_date
+            while current_date <= end_date:
+                # Если текущий день не является выходным или праздничным, увеличиваем счетчик рабочих дней
+                if current_date in list(holidays['working_days']):  # рабочие дни исключения
+                    now_working_days += 1
+                    end_working_days += 1
+                elif current_date.weekday() < 5 and current_date not in list(holidays[int(ddf.strftime('%Y'))]):
+                    if current_date <= now_date:
+                        now_working_days += 1
+                    end_working_days += 1
+                current_date += datetime.timedelta(days=1)
+
+            # Получаем данные прошлого года
+            start_date_2 = datetime.date(int(ddf.strftime('%Y')) - 1, int(ddf.strftime('%m')), 1)
+            now_date_2 = datetime.date(int(ddf.strftime('%Y')) - 1, int(ddf.strftime('%m')), int(ddf.strftime('%d')))
+            end_date_2 = datetime.date(int(ddf.strftime('%Y')) - 1, int(ddf.strftime('%m')),
+                                       calendar.monthrange(now_date_2.year, now_date_2.month)[1])
+            now_working_days_2 = 0
+            end_working_days_2 = 0
+
+            current_date = start_date_2
+            while current_date <= end_date_2:
+                # Если текущий день не является выходным или праздничным, увеличиваем счетчик рабочих дней
+                if current_date in list(holidays['working_days']):  # рабочие дни исключения
+                    now_working_days_2 += 1
+                    end_working_days_2 += 1
+                elif current_date.weekday() < 5 and current_date not in list(holidays[int(ddf.strftime('%Y')) - 1]):
+                    if current_date < now_date_2:
+                        now_working_days_2 += 1
+                    end_working_days_2 += 1
+                current_date += datetime.timedelta(days=1)
+            date_lst = [start_date, start_date_2, now_date, now_date_2, end_date, end_date_2, now_working_days,
+                        now_working_days_2, end_working_days, end_working_days_2]
+            # print('Начало месяца:', start_date, 'в прошлом году', start_date_2)
+            # print('Отчетная дата:', now_date, 'в прошлом году', now_date_2)
+            # print('Конец месяца', end_date, 'в прошлом году', end_date_2)
+            # print('Рабочих дней сейчас', now_working_days, 'в прошлом году', now_working_days_2)
+            # print('Всего рабочих дней', end_working_days, 'в прошлом году', end_working_days_2)
+            return date_lst
+        start_date, start_date_2, now_date, now_date_2, end_date, end_date_2, now_working_days, now_working_days_2, end_working_days, end_working_days_2 = workind_days()
+        df_trp = pd.read_excel(downloaded_file, sheet_name='Лист Клиент', header=10, nrows=200000)
+        # получаем список месяцев от даты отчета
+        col_for_total_result = [now_date.strftime('%d.%m.%Y')]
+        for i in range(1, 13):
+            prev_month = now_date - datetime.timedelta(days=28 * i)
+            while prev_month.strftime('%m.%Y') in col_for_total_result or prev_month.strftime(
+                    '%m.%Y') == now_date.strftime('%m.%Y'):  # поправка на дни
+                prev_month = prev_month - datetime.timedelta(days=1)
+            col_for_total_result.append(prev_month.strftime('%m.%Y'))
+        # добавляем месяца, вместо столбцов Т, -1, -2...
+        count = 0
+        for i in df_trp.columns[8:34:2]:
+            df_trp[col_for_total_result[count]] = df_trp[i]
+            count += 1
+        # добавляем ВП, вместо столбцов КТН
+        count = 0
+        for i in df_trp.columns[9:34:2]:
+            df_trp['ВП ' + str(col_for_total_result[count])] = df_trp.iloc[:, 37 + count] - (
+                    df_trp.iloc[:, 37 + count] / df_trp[i])
+            df_trp['ВП ' + str(col_for_total_result[count])] = df_trp['ВП ' + str(col_for_total_result[count])].fillna(
+                0)
+            df_trp['ВП ' + str(col_for_total_result[count])] = df_trp['ВП ' + str(col_for_total_result[count])].replace(
+                -np.inf, 0)
+            df_trp['ВП ' + str(col_for_total_result[count])] = df_trp['ВП ' + str(col_for_total_result[count])].replace(
+                np.inf, 0)
+            count += 1
+        # Удаляем лишние столбцы с 8 по 36 включительно
+        df_trp = df_trp.iloc[:, :8].join(df_trp.iloc[:, 37:], how='outer')
+        # Сортируем список по сумме текущего месяца
+        df_trp = df_trp.sort_values(by=now_date.strftime('%d.%m.%Y'), ascending=False)
+        # Убираем промежуточные итоги
+        mask = df_trp['Код партнера'].notna()
+        df_trp = df_trp[mask]
+        # Добавляем прогноз прироста
+        df_trp['Прогноз выполнения'] = round(df_trp[df_trp.columns[8]] / now_working_days * end_working_days, 2)
+        df_trp['Прогноз прироста в руб.'] = df_trp['Прогноз выполнения'] - round(
+            (df_trp[df_trp.columns[20]] / end_working_days_2 * end_working_days), 2)
+        df_trp['Отклонение отгрузок по ССП(3 мес)'] = round(
+            df_trp['Прогноз выполнения'] - (df_trp.iloc[:, 9] + df_trp.iloc[:, 10] + df_trp.iloc[:, 11]) / 3)
+        df_trp['Прогноз выполнения ВП'] = round(df_trp[df_trp.columns[21]] / now_working_days * end_working_days, 2)
+        df_trp['Прогноз прироста ВП в руб.'] = df_trp['Прогноз выполнения ВП'] - round(
+            (df_trp[df_trp.columns[33]] / end_working_days_2 * end_working_days), 2)
+
+        df_trp['Отгрузка факт'] = round(df_trp.iloc[:, 8], 2)
+        df_trp['Отгрузка -12 мес (пересчет)'] = round(df_trp.iloc[:, 20] / end_working_days_2 * end_working_days, 2)
+        df_trp['ВП факт'] = round(df_trp.iloc[:, 21], 2)
+        df_trp['ВП -12 мес (пересчет)'] = round(df_trp.iloc[:, 33] / end_working_days_2 * end_working_days, 2)
+        # Завершаем обработку и сохраняем в файл
+        end = time.time()
+        # print("Время выполнения: ", int(end - start), ' сек.')
+        df_trp.to_excel('month_net_for_bi.xlsx', index=False)
+        bot.send_message(message.from_user.id, "Время выполнения: " + str(int(end - start)) + ' сек.')
+        with open('month_net_for_bi.xlsx', 'rb') as f:
+            bot.send_document(message.chat.id, f)
 
     start = time.time()  # для таймера выполнения
     # Скачиваем файл
@@ -547,9 +661,11 @@ def handle_file(message):
     elif '.xls' in str(message.document.file_name) and 'month_otgr' in str(message.document.file_name):
         downloaded_file = bot.download_file(file_info.file_path)
         data_month_otgr()
+    elif '.xls' in str(message.document.file_name) and 'month_net' in str(message.document.file_name):
+        downloaded_file = bot.download_file(file_info.file_path)
+        data_network_partners()
     else:
         bot.send_message(message.from_user.id, 'Неверный файл. Необходимо отправить исходник new_compare.xls')
-
 
 
 try:  # перезапуск при достижении лимита и дисконекте
