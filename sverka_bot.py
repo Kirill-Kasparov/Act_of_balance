@@ -5,7 +5,7 @@ import time
 import os
 import datetime
 
-with open('bot_token.TXT', 'r') as file:
+with open('bot_token_test.TXT', 'r') as file:
     token = file.readline().strip()
 bot = telebot.TeleBot(token)
 # t.me/komus_sverka_bot
@@ -30,7 +30,7 @@ def handle_file(message):
             for order in orders_list:
                 if len(str(order)) > 8:
                     order_df = sverka_df[sverka_df['№ заказа'] == order]
-                    if order_df['Дебет'].sum() == order_df['Кредит'].sum():
+                    if round(order_df['Дебет'].sum(), 2) == round(order_df['Кредит'].sum(), 2):
                         sverka_df.loc[sverka_df['№ заказа'] == order, 'Комментарий'] = 'Оплачено по заказу'
                         count_true += 1
                 count_total += 1
