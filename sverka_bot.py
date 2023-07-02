@@ -62,7 +62,7 @@ def handle_file(message):
             debet_db = sverka_df.loc[(sverka_df['Комментарий'] == '-') & (sverka_df['Дебет'] != 0.0)]
             credit_db = sverka_df.loc[(sverka_df['Комментарий'] == '-') & (sverka_df['Кредит'] != 0.0)]
             start_for_debet_list = x
-            end_for_debet_list = 20 + x
+            end_for_debet_list = 15 + x
             # print('Дебет:', len(debet_db['Дебет']), 'Кредит:', len(credit_db['Кредит']))
             if len(debet_db['Дебет']) > 0 and len(credit_db['Кредит']) > 0:
                 # собираем словари
@@ -70,7 +70,7 @@ def handle_file(message):
                 for value in debet_db['Дебет'].to_list():
                     if str(value).isdigit():
                         debet_list.append(float(value))
-                if len(debet_list) > 23:
+                if len(debet_list) > 20:
                     debet_list = debet_list[
                                  start_for_debet_list:end_for_debet_list]  # диапазон будет смещаться на значение х
                 credit_list = []
@@ -184,14 +184,14 @@ def handle_file(message):
 
         # перезапускаем проверку на комбинации со смещением диапазона поиска
         count = 0
-        step = 10
+        step = 7
         while count != 200:
             debet_db = sverka_df.loc[(sverka_df['Комментарий'] == '-') & (sverka_df['Дебет'] != 0.0)]
             credit_db = sverka_df.loc[(sverka_df['Комментарий'] == '-') & (sverka_df['Кредит'] != 0.0)]
             if len(debet_db['Дебет']) > 30 and len(credit_db['Кредит']) > 0:
                 sverka_df = search_by_combo(sverka_df, step)
                 count += 1
-                step += 10
+                step += 7
                 if step > len(debet_db['Дебет']):
                     break
             else:
@@ -209,7 +209,8 @@ def handle_file(message):
         # print("Время выполнения: ", int(end - start), ' сек.')
         sverka_df.to_excel('Разбор_сальдо.xlsx', index=False)
 
-        bot.send_message(message.from_user.id, "Время выполнения: " + str(int(end - start)) + ' сек.')
+        bot.send_message(message.from_user.id, 'Время выполнения: ' + str(round(end - start)) + ' сек.')
+
         with open('Разбор_сальдо.xlsx', 'rb') as f:
             bot.send_document(message.chat.id, f)
     def data_listclient_main_partners():
@@ -654,7 +655,11 @@ def handle_file(message):
     file_info = bot.get_file(message.document.file_id)
     if '.xls' in str(message.document.file_name) and 'new_compare' in str(message.document.file_name):
         downloaded_file = bot.download_file(file_info.file_path)
-        act_of_balance()
+        try:
+            act_of_balance()
+        except:
+            bot.send_message(message.from_user.id, 'Что-то пошло не так: 1. попробуйте сформировать сверку за другой период 2. убедитесь в наличии листа "сокращённый по ЮрЛицу"')
+
     elif '.xls' in str(message.document.file_name) and 'ListClients' in str(message.document.file_name):
         downloaded_file = bot.download_file(file_info.file_path)
         data_listclient_main_partners()
